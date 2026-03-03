@@ -66,7 +66,7 @@ pipeline {
 		stage('Docker Build') {
 			steps {
 				sh '''
-					docker build -t tjdudgkr0959/spring-jenkins .
+					docker build -t leehk9311/spring-jenkins .
 				   '''
 			}
 		}
