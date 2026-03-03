@@ -4,11 +4,11 @@ pipeline {
     environment {
         DOCKER_IMAGE = "leehk9311/spring-jenkins"
         SERVER_IP = "3.34.125.147"
-        APP_DIR = "~/app"
+        CONTAINER_NAME = "spring-jenkins"
     }
 
     tools {
-        jdk 'jdk17'
+        jdk 'jdk17'   // Jenkins 관리 > Tools > JDK installations 의 JDK Name 에 입력한 이름
     }
 
     stages {
@@ -29,9 +29,9 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub_info',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    credentialsId: 'dockerhub_info', // 반드시 Jenkins 설치시 New credentials 에서 Username with password 에서 입력하였던 ID 이름을 넣어야 함. 
+                    usernameVariable: 'DOCKER_USER', // Jenkins 내부에서 쓰는 환경 변수 이름이므로 그대로 써야함. 바꾸면 안됨. 
+                    passwordVariable: 'DOCKER_PASS'  // Jenkins 내부에서 쓰는 환경 변수 이름이므로 그대로 써야함. 바꾸면 안됨. 
                 )]) {
 
                     sh '''
@@ -43,14 +43,15 @@ pipeline {
             }
         }
 
-        stage('Deploy with Docker Compose') {
+        stage('Deploy to Server') {
             steps {
-                sshagent(['SERVER_SSH_KEY']) {
+                sshagent(['SERVER_SSH_KEY']) {  // 반드시 Jenkins 설치시 New credentials 에서 SSH Username with private key 에서 입력하였던 ID 이름을 넣어야 함.
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@$SERVER_IP '
-                            cd $APP_DIR
-                            docker compose pull
-                            docker compose up -d --force-recreate
+                            docker stop $CONTAINER_NAME || true
+                            docker rm $CONTAINER_NAME || true
+                            docker pull $DOCKER_IMAGE:latest
+                            docker run -d --name $CONTAINER_NAME -p 9090:9090 $DOCKER_IMAGE:latest
                         '
                     """
                 }
@@ -60,7 +61,7 @@ pipeline {
 
     post {
         success {
-            echo "Compose deployment completed successfully."
+            echo "Deployment completed successfully."
         }
         failure {
             echo "Deployment failed."
